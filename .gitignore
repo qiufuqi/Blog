@@ -4,3 +4,5 @@ node_modules
 .github
 .deploy_git
 _config.yml
+package-lock.json
+db.json
