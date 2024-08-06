@@ -1,0 +1,5 @@
+hexo-deployer-git
+public
+node_modules
+.github
+.deploy_git
