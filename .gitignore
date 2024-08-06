@@ -1,15 +1,6 @@
-<<<<<<< .mine
 hexo-deployer-git
 public
 node_modules
 .github
 .deploy_git
 _config.yml
-=======
-hexo-deployer-git
-public
-node_modules
-.github
-.deploy_git
-
->>>>>>> .theirs
