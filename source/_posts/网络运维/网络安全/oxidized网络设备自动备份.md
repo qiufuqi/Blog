@@ -81,10 +81,47 @@ I, [2024-08-12T15:27:51.481188 #44]  INFO -- : lib/oxidized/nodes.rb: Loaded 1 n
 [root@LYGVLTOPOT01 ~]# cat /data/oxidized/router.db 
 YJYHX_255.22:vrp:10.50.255.22:hradmin:Asdf!123
 
+# 普通配置
 [root@LYGVLTOPOT01 ~]# vi /data/oxidized/config
-······
+---
+username: username
+password: password
+model: junos
+resolve_dns: true
+interval: 3600
+use_syslog: false
 log: /home/oxidized/.config/oxidized/logs/oxidized.log
-······
+debug: false
+run_once: false
+threads: 30
+use_max_threads: false
+timeout: 20
+retries: 3
+prompt: !ruby/regexp /^([\w.@-]+[#>]\s?)$/
+rest: 0.0.0.0:8888
+next_adds_job: false
+vars: {}
+groups: {}
+group_map: {}
+models: {}
+pid: "/home/oxidized/.config/oxidized/pid"
+crash:
+  directory: "/home/oxidized/.config/oxidized/crashes"
+  hostnames: false
+stats:
+  history_size: 10
+input:
+  default: ssh, telnet
+  debug: false
+  ssh:
+    secure: false
+  ftp:
+    passive: true
+  utf8_encoded: true
+output:
+  default: file
+  file:
+    directory: "/home/oxidized/.config/oxidized/configs"
 source:
   default: csv
   csv:
@@ -97,7 +134,100 @@ source:
       username: 3
       password: 4
     gpg: false
+model_map:
+  juniper: junos
+  cisco: ios
 
+```
+使用密钥rsa验证 首先生成rsa密钥文件
+``` bash
+# 生成rsa密钥文件
+ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa.pem
+cp /root/.ssh/id_rsa.pem /data/oxidized/id_rsa.pem
+
+# config中调用
+[root@LYGVLTOPOT01 ~]# vi /data/oxidized/config
+
+# 全局
+······
+next_adds_job: false
+vars:
+  ssh_keys: "/home/oxidized/.config/oxidized/.ssh/id_rsa.pem"
+groups: {}
+group_map: {}
+······
+
+
+# 每个节点
+map:
+  name: 0
+  model: 1
+  ip: 2
+  username: 3
+  password: 4
+vars_map:
+  ssh_keys: 5
+
+YJYHX_255.22:vrp:10.50.255.22:hradmin:Asdf!123:/home/oxidized/.config/oxidized/.ssh/id_rsa.pem
+```
+
+## 备份文件自动上传
+### 脚本上传
+编写脚本，自动上传 安装git
+``` bash
+yum -y install git
+
+cd /data/oxidized/configs
+git init 
+git status
+
+git remote add origin https://codehub.hengrui.com/qiuf9/oxidized.git
+git add -A
+git commit -m "上传"
+git push -u origin master 
+
+# 上传会要求输入密码 开启后会自动存储
+git config --global credential.helper store
+
+
+[root@LYGVLK8SW09 ~]# crontab -l
+0 * * * * cd /opt;./gitpush.sh > gitpush.log 2>&1
+
+cat /opt/gitpush.sh
+#!/bin/bash
+source /etc/profile
+# FileName:    gitpush.sh 
+# Describe:    Used for git push
+# Revision:    1.0
+# Date:        2024/01/18
+# Author:      Austines
+
+dt=`date +%Y%m%d_%H%M`
+echo "Backup Begin Date:" $(date +"%Y-%m-%d %H:%M:%S")
+
+cd /data/oxidized/configs
+git add -A
+git commit -m "Auto commit - $dt"
+git push -u origin master
+```
+
+### oxidized自动上传
+备份文件自动上传至gitlab平台  git产生git基础配置，hooks上传使用
+``` bash
+output:
+  default: git
+  file:
+    directory: "/home/oxidized/.config/oxidized/configs"
+  git:
+    single_repo: true
+    user: qiuf9
+    email: fuqi.qiu.fq9@hengrui.com
+    repo: /home/oxidized/.config/oxidized/configs/configs.git
+hooks:
+  push_to_remote:
+    type: githubrepo
+    events: [post_store]
+    remote_repo: "https://qiuf9:glpat-bxBEWW7gWnUKxYFcB9KA@codehub.hengrui.com/qiuf9/oxidized.git"
 ```
 ## 启动oxidized
 重启对应的docker镜像名称
@@ -121,7 +251,8 @@ columnDefs: [{ visible: false, targets: 1}]
 
 ```
 ## 时间问题
-docker oxidized时区问题，时间显示不是北京时间 问题原因：ruby语言的时间直接获取的UTC时间
+docker oxidized时区问题，时间显示不是北京时间 问题原因：ruby语言的时间直接获取的UTC时间，修改完重启镜像
+### 更改Last Update时间
 - docker exec -it oxidized /bin/bash
 - vi /var/lib/gems/3.0.0/gems/oxidized-0.30.1/lib/oxidized/job.rb
 - 执行:%s/Time.now.utc/Time.now，把Time.now.utc全部改成Time.now，一共3处
@@ -129,3 +260,14 @@ docker oxidized时区问题，时间显示不是北京时间 问题原因：ruby
 - 重启容器
 
 ![](https://qiufuqi.github.io/img/hexo/20240813113453.png)
+
+### 更改Last Changed时间
+- docker exec -it oxidized /bin/bash
+- vi /var/lib/gems/3.0.0/gems/oxidized-0.30.1/lib/oxidized/node/stats.rb
+- 45行左右，把Time.now.utc全部改成Time.now，一共3处
+- 退出容器
+- 重启容器
+
+![](https://qiufuqi.github.io/img/hexo/20240814141736.png)
+
+
