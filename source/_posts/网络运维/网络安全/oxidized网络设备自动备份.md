@@ -264,7 +264,7 @@ docker oxidized时区问题，时间显示不是北京时间 问题原因：ruby
 ### 更改Last Changed时间
 - docker exec -it oxidized /bin/bash
 - vi /var/lib/gems/3.0.0/gems/oxidized-0.30.1/lib/oxidized/node/stats.rb
-- 45行左右，把Time.now.utc全部改成Time.now，一共3处
+- 45行左右，把Time.now.utc全部改成Time.now，一共1处
 - 退出容器
 - 重启容器
 
