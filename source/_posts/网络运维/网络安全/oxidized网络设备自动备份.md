@@ -75,7 +75,7 @@ I, [2024-08-12T15:27:51.283274 #44]  INFO -- : Oxidized starting, running as pid
 I, [2024-08-12T15:27:51.284005 #44]  INFO -- : lib/oxidized/nodes.rb: Loading nodes
 I, [2024-08-12T15:27:51.481188 #44]  INFO -- : lib/oxidized/nodes.rb: Loaded 1 nodes
 ```
-## 修改配置
+## 基本配置
 此处的顺序和config中map调用有关系
 ``` bash
 [root@LYGVLTOPOT01 ~]# cat /data/oxidized/router.db 
@@ -139,12 +139,16 @@ model_map:
   cisco: ios
 
 ```
-使用密钥rsa验证 首先生成rsa密钥文件
+### RSA密钥配置
+使用密钥rsa验证 首先生成rsa密钥文件 [配置参考](https://github.com/ytti/oxidized/blob/master/docs/Configuration.md)
 ``` bash
 # 生成rsa密钥文件
 ssh-keygen -t rsa -b 4096 -f ~/.ssh/id_rsa.pem
 cp /root/.ssh/id_rsa.pem /data/oxidized/id_rsa.pem
+```
 
+**通用密钥认证**
+``` bash
 # config中调用
 [root@LYGVLTOPOT01 ~]# vi /data/oxidized/config
 
@@ -156,8 +160,44 @@ vars:
 groups: {}
 group_map: {}
 ······
+```
+**通用组密钥认证** 输出的配置也会按照分组来
+``` bash
+# router.db添加分组(hr_access/hr_dc)，并在config中指定分组   huawei/vrp 都可以，huawei时会去model_map对照为vrp
+poeSW_96.9_N021_1:huawei:10.50.96.9:hradmin:Asdf!123:hr_access
+SuZhou_nmy_Core_255.2:vrp:10.21.255.2:hradmin:Asdf!123:hr_dc
 
+# config添加groups对照router.db中分组，并指定分组使用的rsa密钥
+······
+groups:
+  hr_dc:
+    vars:
+       ssh_keys: "/home/oxidized/.config/oxidized/.ssh/P3key_rsa.pem"
+  hr_access:
+    vars:
+       ssh_keys: "/home/oxidized/.config/oxidized/.ssh/P4key_rsa.pem"
+······
+source:
+  default: csv
+  csv:
+    file: "/home/oxidized/.config/oxidized/router.db"
+    delimiter: !ruby/regexp /:/
+    map:
+      name: 0
+      model: 1
+      ip: 2
+      username: 3
+      password: 4
+      group: 5        #增加分组
+    gpg: false
+model_map:
+  juniper: junos
+  cisco: ios
+  huawei: vrp
+```
 
+**单个节点认证** （不推荐此种方法）
+``` bash
 # 每个节点
 map:
   name: 0
@@ -170,6 +210,9 @@ vars_map:
 
 YJYHX_255.22:vrp:10.50.255.22:hradmin:Asdf!123:/home/oxidized/.config/oxidized/.ssh/id_rsa.pem
 ```
+
+
+
 
 ## 备份文件自动上传
 ### 脚本上传
